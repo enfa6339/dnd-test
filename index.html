@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echoes from Noman - Canva Style VTT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .bg-grid {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        }
+        .sheet-paper {
+            background-color: #fcfaf2;
+            color: #1e293b;
+            border: 2px solid #0e7490;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-2 flex justify-between items-center shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <h1 class="text-sm font-bold text-amber-500">📜 Echoes from Noman VTT</h1>
+            <span class="text-[11px] bg-cyan-950 text-cyan-300 px-2.5 py-1 rounded-full border border-cyan-800">Room: #NOMAN-01</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="switchMode('player')" id="nav-player" class="px-3 py-1 bg-cyan-600 text-white rounded-lg text-xs font-bold transition shadow">🛡️ หน้าผู้เล่น (Character Sheet)</button>
+            <button onclick="switchMode('dm-control')" id="nav-dm-control" class="px-3 py-1 bg-slate-800 text-slate-300 hover:bg-slate-700 rounded-lg text-xs font-bold transition">👑 โหมด DM (คุมเกม)</button>
+            <button onclick="switchMode('dm-maker')" id="nav-dm-maker" class="px-3 py-1 bg-slate-800 text-slate-300 hover:bg-slate-700 rounded-lg text-xs font-bold transition">🎨 โหมดสร้างฉาก (Canva Map Maker)</button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- Left Area: Battle Map / Scene Viewer -->
+        <main class="flex-1 bg-slate-950 bg-grid relative overflow-auto flex items-center justify-center p-6 select-none">
+            <div id="battle-map" class="w-[900px] h-[700px] bg-slate-900/40 border-2 border-cyan-800/60 relative rounded-xl shadow-2xl overflow-hidden bg-center bg-no-repeat bg-cover">
+                
+                <!-- Container สำหรับแสดง Token ทั้งหมดในฉาก -->
+                <div id="tokens-container">
+                    <div id="token-token-p1" class="absolute top-28 left-28 w-12 h-12 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center font-bold text-xs shadow-lg cursor-grab active:cursor-grabbing z-10 overflow-hidden" onmousedown="startDrag(event, 'token-token-p1')">
+                        <span class="token-label">Katsuya</span>
+                    </div>
+                    <div id="token-token-monster" class="absolute top-48 left-64 w-12 h-12 bg-red-600 rounded-full border-2 border-white flex items-center justify-center font-bold text-xs shadow-lg cursor-grab active:cursor-grabbing z-10 overflow-hidden" onmousedown="startDrag(event, 'token-token-monster')">
+                        <span class="token-label">G3</span>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-4 left-4 text-xs text-slate-300 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-700 pointer-events-none shadow flex items-center gap-2">
+                    <span>ฉากปัจจุบัน: <b id="current-scene-label" class="text-amber-400">ฉากที่ 1: Default Cave</b></span>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar -->
+        <aside class="w-[420px] bg-slate-900 border-l border-slate-800 flex flex-col shrink-0 z-10 overflow-y-auto">
+
+            <!-- 1. PLAYER PANEL (Character Sheet + Combat Tracker) -->
+            <div id="panel-player" class="p-4 space-y-4">
+                
+                <!-- กล่องแสดงลำดับเทิร์นสำหรับผู้เล่น -->
+                <div class="bg-cyan-950/40 border border-cyan-800/60 p-3 rounded-xl space-y-2">
+                    <div class="flex justify-between items-center text-xs font-bold text-cyan-300">
+                        <span>⚔️ Combat Turn Tracker (ลำดับการต่อสู้)</span>
+                        <span id="player-round-indicator" class="text-[10px] bg-cyan-900 px-2 py-0.5 rounded text-cyan-200">Round 1</span>
+                    </div>
+                    <div id="player-shared-initiative" class="space-y-1 text-xs max-h-28 overflow-y-auto">
+                        <!-- รายการเทิร์นซิงค์อัตโนมัติ -->
+                    </div>
+                </div>
+
+                <div class="sheet-paper p-3 rounded-lg shadow-xl space-y-3 text-xs">
+                    <div class="border border-cyan-700 p-2 rounded bg-white/50 space-y-2">
+                        <div class="font-bold text-cyan-900 border-b border-cyan-700 pb-1 flex justify-between items-center">
+                            <span>I IDENTITY CARD</span>
+                            <span class="text-[10px] text-slate-500 font-normal">Echoes from Noman</span>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <label class="w-16 h-20 bg-slate-200 border border-dashed border-cyan-700 rounded flex flex-col items-center justify-center text-[9px] text-cyan-900 cursor-pointer overflow-hidden relative">
+                                <span id="char-img-text" class="text-center px-1">รูปตัวละคร</span>
+                                <input type="file" accept="image/*" class="hidden" onchange="loadCharAvatar(event)">
+                            </label>
+                            <div class="flex-1 space-y-1">
+                                <div class="flex gap-1">
+                                    <div class="flex-1">Name: <input type="text" id="c-name" value="Katsuya" oninput="syncPlayerName()" class="w-full bg-transparent border-b border-cyan-700 font-semibold focus:outline-none"></div>
+                                    <div class="w-20">Surname: <input type="text" value="Kamo" class="w-full bg-transparent border-b border-cyan-700 font-semibold focus:outline-none"></div>
+                                </div>
+                                <div class="flex gap-1 text-[11px]">
+                                    <div>DOB: <input type="text" value="7/12/-" class="w-16 bg-transparent border-b border-cyan-700 text-center focus:outline-none"></div>
+                                    <div>Sex: <input type="text" value="M" class="w-6 bg-transparent border-b border-cyan-700 text-center focus:outline-none"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-1 text-center font-bold">
+                        <div class="border border-cyan-700 p-1 bg-white/50 rounded">
+                            <div class="text-[9px] text-slate-500 font-normal">Hp</div>
+                            <input type="text" value="22" class="w-full bg-transparent text-center font-bold text-sm text-cyan-950 focus:outline-none">
+                        </div>
+                        <div class="border border-cyan-700 p-1 bg-white/50 rounded">
+                            <div class="text-[9px] text-slate-500 font-normal">Ac</div>
+                            <input type="text" value="14" class="w-full bg-transparent text-center font-bold text-sm text-cyan-950 focus:outline-none">
+                        </div>
+                        <div class="border border-cyan-700 p-1 bg-white/50 rounded">
+                            <div class="text-[9px] text-slate-500 font-normal">Spd</div>
+                            <input type="text" value="8" class="w-full bg-transparent text-center font-bold text-sm text-cyan-950 focus:outline-none">
+                        </div>
+                        <div class="border border-cyan-700 p-1 bg-white/50 rounded">
+                            <div class="text-[9px] text-slate-500 font-normal">Con</div>
+                            <input type="text" value="💎💎" class="w-full bg-transparent text-center text-[10px] text-cyan-950 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="border border-cyan-700 p-1.5 rounded bg-white/50">
+                            <div class="grid grid-cols-2 gap-1 text-center">
+                                <div class="border border-cyan-600 p-1"><span class="text-[9px] block text-slate-500">STR</span><input type="text" value="8" class="w-full text-center font-bold text-red-600 bg-transparent focus:outline-none"></div>
+                                <div class="border border-cyan-600 p-1"><span class="text-[9px] block text-slate-500">INT</span><input type="text" value="14" class="w-full text-center font-bold text-blue-600 bg-transparent focus:outline-none"></div>
+                                <div class="border border-cyan-600 p-1"><span class="text-[9px] block text-slate-500">DEX</span><input type="text" value="14" class="w-full text-center font-bold text-blue-600 bg-transparent focus:outline-none"></div>
+                                <div class="border border-cyan-600 p-1"><span class="text-[9px] block text-slate-500">WIS</span><input type="text" value="12" class="w-full text-center font-bold text-green-600 bg-transparent focus:outline-none"></div>
+                                <div class="border border-cyan-600 p-1"><span class="text-[9px] block text-slate-500">CON</span><input type="text" value="14" class="w-full text-center font-bold text-blue-600 bg-transparent focus:outline-none"></div>
+                                <div class="border border-cyan-600 p-1"><span class="text-[9px] block text-slate-500">CNA</span><input type="text" value="8" class="w-full text-center font-bold text-amber-600 bg-transparent focus:outline-none"></div>
+                            </div>
+                        </div>
+                        <div class="border border-cyan-700 p-1.5 rounded bg-white/50 space-y-1">
+                            <div class="flex justify-between text-[10px] border-b border-cyan-700 pb-0.5">
+                                <span>Exp: 250</span><span>Ap: 4</span><span>Rp: 2</span>
+                            </div>
+                            <textarea class="w-full h-20 bg-transparent resize-none focus:outline-none text-[11px] text-cyan-900" placeholder="จดโน้ตทักษะ...">• Blood Manipulation : 20
+• Investigation : 20</textarea>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="border border-cyan-700 p-2 rounded bg-white/50">
+                            <div class="font-bold border-b border-cyan-700 pb-0.5 text-cyan-900">Equipment</div>
+                            <textarea class="w-full h-12 bg-transparent resize-none focus:outline-none text-[11px]">- คาตานะ
+- วากิซาชิ</textarea>
+                        </div>
+                        <div class="border border-cyan-700 p-2 rounded bg-white/50">
+                            <div class="font-bold border-b border-cyan-700 pb-0.5 text-cyan-900">Traits Passive</div>
+                            <textarea class="w-full h-12 bg-transparent resize-none focus:outline-none text-[10px]">- HP เหลือ 0 ใช้ Spell Sloth แทนได้</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 p-3 rounded-xl space-y-2">
+                    <span class="font-bold text-xs text-slate-300">🎲 Quick Dice Roller</span>
+                    <div class="grid grid-cols-4 gap-1.5">
+                        <button onclick="rollDice(4)" class="py-2 bg-slate-900 hover:bg-cyan-600 text-slate-200 font-bold text-xs rounded-lg border border-slate-800 transition">d4</button>
+                        <button onclick="rollDice(6)" class="py-2 bg-slate-900 hover:bg-cyan-600 text-slate-200 font-bold text-xs rounded-lg border border-slate-800 transition">d6</button>
+                        <button onclick="rollDice(8)" class="py-2 bg-slate-900 hover:bg-cyan-600 text-slate-200 font-bold text-xs rounded-lg border border-slate-800 transition">d8</button>
+                        <button onclick="rollDice(20)" class="py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-extrabold text-xs rounded-lg transition shadow">d20</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. DM CONTROL PANEL -->
+            <div id="panel-dm-control" class="hidden p-4 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h2 class="font-bold text-purple-400 text-sm">👑 DM Game Control</h2>
+                    <span class="text-[10px] bg-purple-950 text-purple-300 px-2 py-0.5 rounded border border-purple-800">ผู้คุมเกม</span>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 p-3.5 rounded-xl space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-xs text-slate-200">⚔️ Combat Initiative Tracker</span>
+                        <button onclick="sortInitiative()" class="text-[10px] bg-purple-600 hover:bg-purple-500 text-white px-2 py-1 rounded font-bold transition">จัดเรียงเทิร์น</button>
+                    </div>
+                    <div class="text-[10px] text-slate-400">ใส่แต้ม Init (สูงอยู่บน) แล้วกดจัดเรียง:</div>
+                    
+                    <div id="initiative-list" class="space-y-2 text-xs max-h-48 overflow-y-auto pr-1">
+                        <div class="flex items-center gap-2 bg-slate-900 p-2 rounded border border-slate-800 init-row">
+                            <input type="text" value="Katsuya" class="flex-1 bg-transparent text-slate-200 font-bold focus:outline-none c-name-input" oninput="updatePlayerTracker()">
+                            <span class="text-[10px] text-slate-400">Init:</span>
+                            <input type="number" value="18" class="w-12 bg-slate-950 text-center text-amber-400 font-bold rounded p-1 border border-slate-700 c-init-val" oninput="updatePlayerTracker()">
+                            <button onclick="this.parentElement.remove(); updatePlayerTracker();" class="text-red-400 hover:text-red-300 px-1">✕</button>
+                        </div>
+                        <div class="flex items-center gap-2 bg-slate-900 p-2 rounded border border-slate-800 init-row">
+                            <input type="text" value="G3 (Monster)" class="flex-1 bg-transparent text-slate-200 font-bold focus:outline-none c-name-input" oninput="updatePlayerTracker()">
+                            <span class="text-[10px] text-slate-400">Init:</span>
+                            <input type="number" value="12" class="w-12 bg-slate-950 text-center text-amber-400 font-bold rounded p-1 border border-slate-700 c-init-val" oninput="updatePlayerTracker()">
+                            <button onclick="this.parentElement.remove(); updatePlayerTracker();" class="text-red-400 hover:text-red-300 px-1">✕</button>
+                        </div>
+                    </div>
+                    
+                    <button onclick="addInitiativeRow()" class="w-full py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded font-bold transition">+ เพิ่มช่องตัวละคร/มอนสเตอร์</button>
+                    <button onclick="nextTurn()" class="w-full py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg transition mt-2">Next Turn ➔ (เปลี่ยนเทิร์น)</button>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 p-3.5 rounded-xl space-y-3">
+                    <span class="font-bold text-xs text-slate-200">👻 ควบคุมสถานะ Token (ล่องหน)</span>
+                    <div class="flex gap-2">
+                        <button onclick="toggleStealth('token-token-monster', true)" class="flex-1 py-1.5 bg-purple-950 hover:bg-purple-900 text-purple-200 border border-purple-700 rounded text-xs font-bold transition">ซ่อน G3</button>
+                        <button onclick="toggleStealth('token-token-monster', false)" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-bold transition">แสดงตัว</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. DM MAP MAKER -->
+            <div id="panel-dm-maker" class="hidden p-4 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h2 class="font-bold text-amber-400 text-sm">🎨 Canva Style Map & Token Maker</h2>
+                    <span class="text-[10px] bg-amber-950 text-amber-300 px-2 py-0.5 rounded border border-amber-800">โหมดสร้างฉาก</span>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 p-3.5 rounded-xl space-y-3">
+                    <span class="font-bold text-xs text-amber-300">🪙 สร้าง Token ตัวละคร / มอนสเตอร์ (วางซ้ำได้ไม่จำกัด)</span>
+                    <div class="space-y-2 text-xs">
+                        <div>
+                            <span class="text-slate-400 text-[11px]">ชื่อ Token:</span>
+                            <input type="text" id="new-token-name" placeholder="เช่น Goblin, Hero" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 mt-0.5 focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <span class="text-slate-400 text-[11px]">อัปโหลดรูปภาพ Token (ถ้ามี):</span>
+                            <input type="file" id="new-token-img" accept="image/*" class="w-full mt-1 text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer">
+                        </div>
+                        <button onclick="createNewToken()" class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-lg transition shadow">➕ วาง Token ลงบนแผนที่</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 p-3.5 rounded-xl space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-xs text-slate-200">📑 จัดการฉากทั้งหมดในแคมเปญ</span>
+                        <button onclick="addNewScene()" class="text-[10px] bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold px-2 py-1 rounded transition">+ เพิ่มฉากใหม่</button>
+                    </div>
+                    <div id="scene-list" class="space-y-1.5 text-xs">
+                        <div class="p-2 bg-slate-900 border border-amber-500 rounded flex justify-between items-center">
+                            <span>ฉากที่ 1: Default Cave</span>
+                            <span class="text-[10px] text-amber-400">กำลังแสดง</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 p-3.5 rounded-xl space-y-3">
+                    <span class="font-bold text-xs text-slate-200">🖼️ เปลี่ยนรูปพื้นหลังฉากปัจจุบัน</span>
+                    <div class="space-y-2 text-xs">
+                        <input type="file" accept="image/*" onchange="uploadSceneBackground(event)" class="w-full text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-slate-950 hover:file:bg-amber-500 cursor-pointer">
+                        <button onclick="clearSceneBackground()" class="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition">ลบรูปพื้นหลังฉากนี้</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shared Chat & Dice Log -->
+            <div class="mt-auto border-t border-slate-800 bg-slate-900 p-3 space-y-2">
+                <div class="flex justify-between items-center text-[11px] text-slate-400">
+                    <span>💬 Dice & Action Log</span>
+                </div>
+                <div id="chat-log" class="h-24 bg-slate-950 border border-slate-800 p-2.5 rounded-lg text-xs space-y-1 overflow-y-auto text-slate-300">
+                    <p class="text-slate-500">ผลการทอยเต๋าและแชทจะแสดงบันทึกที่นี่...</p>
+                </div>
+                <input type="text" id="chat-input" placeholder="พิมพ์ข้อความแชท..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500" onkeypress="handleChat(event)">
+            </div>
+
+        </aside>
+
+    </div>
+
+    <!-- Script ควบคุมระบบทั้งหมด -->
+    <script>
+        let scenes = [
+            { id: 1, name: "ฉากที่ 1: Default Cave", bg: "" }
+        ];
+        let currentSceneId = 1;
+
+        function switchMode(mode) {
+            document.getElementById('panel-player').classList.add('hidden');
+            document.getElementById('panel-dm-control').classList.add('hidden');
+            document.getElementById('panel-dm-maker').classList.add('hidden');
+
+            document.getElementById('nav-player').className = "px-3 py-1 bg-slate-800 text-slate-300 hover:bg-slate-700 rounded-lg text-xs font-bold transition";
+            document.getElementById('nav-dm-control').className = "px-3 py-1 bg-slate-800 text-slate-300 hover:bg-slate-700 rounded-lg text-xs font-bold transition";
+            document.getElementById('nav-dm-maker').className = "px-3 py-1 bg-slate-800 text-slate-300 hover:bg-slate-700 rounded-lg text-xs font-bold transition";
+
+            if (mode === 'player') {
+                document.getElementById('panel-player').classList.remove('hidden');
+                document.getElementById('nav-player').className = "px-3 py-1 bg-cyan-600 text-white rounded-lg text-xs font-bold transition shadow";
+            } else if (mode === 'dm-control') {
+                document.getElementById('panel-dm-control').classList.remove('hidden');
+                document.getElementById('nav-dm-control').className = "px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-bold transition shadow";
+            } else if (mode === 'dm-maker') {
+                document.getElementById('panel-dm-maker').classList.remove('hidden');
+                document.getElementById('nav-dm-maker').className = "px-3 py-1 bg-amber-600 text-slate-950 font-bold transition shadow";
+            }
+        }
+
+        function syncPlayerName() {
+            const name = document.getElementById('c-name').value || 'Katsuya';
+            const rows = document.getElementsByClassName('init-row');
+            if (rows.length > 0) {
+                const firstInput = rows[0].querySelector('.c-name-input');
+                if (firstInput) firstInput.value = name;
+                updatePlayerTracker();
+            }
+        }
+
+        let tokenCount = 2;
+        function createNewToken() {
+            const nameInput = document.getElementById('new-token-name');
+            const imgInput = document.getElementById('new-token-img');
+            const name = nameInput.value.trim() || `Token ${tokenCount + 1}`;
+            tokenCount++;
+
+            const tokenDiv = document.createElement('div');
+            const tokenId = `token-custom-${tokenCount}-${Date.now()}`;
+            tokenDiv.id = tokenId;
+            tokenDiv.className = "absolute top-40 left-40 w-12 h-12 bg-purple-600 rounded-full border-2 border-white flex items-center justify-center font-bold text-xs shadow-lg cursor-grab active:cursor-grabbing z-10 overflow-hidden";
+            tokenDiv.setAttribute('onmousedown', `startDrag(event, '${tokenId}')`);
+
+            if (imgInput.files && imgInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    tokenDiv.style.backgroundImage = `url('${e.target.result}')`;
+                    tokenDiv.style.backgroundSize = 'cover';
+                    tokenDiv.style.backgroundPosition = 'center';
+                    tokenDiv.innerHTML = `<span class="bg-slate-950/70 px-1 rounded text-[9px] text-white absolute bottom-0 truncate max-w-full">${name}</span>`;
+                }
+                reader.readAsDataURL(imgInput.files[0]);
+            } else {
+                tokenDiv.innerHTML = `<span class="token-label truncate px-1">${name}</span>`;
+            }
+
+            document.getElementById('tokens-container').appendChild(tokenDiv);
+            
+            const initList = document.getElementById('initiative-list');
+            const row = document.createElement('div');
+            row.className = "flex items-center gap-2 bg-slate-900 p-2 rounded border border-slate-800 init-row";
+            row.innerHTML = `<input type="text" value="${name}" class="flex-1 bg-transparent text-slate-200 font-bold focus:outline-none c-name-input" oninput="updatePlayerTracker()"><span class="text-[10px] text-slate-400">Init:</span><input type="number" value="10" class="w-12 bg-slate-950 text-center text-amber-400 font-bold rounded p-1 border border-slate-700 c-init-val" oninput="updatePlayerTracker()"><button onclick="this.parentElement.remove(); updatePlayerTracker();" class="text-red-400 hover:text-red-300 px-1">✕</button>`;
+            initList.appendChild(row);
+            updatePlayerTracker();
+
+            nameInput.value = '';
+            imgInput.value = '';
+            alert(`สร้าง Token "${name}" ลงบนแผนที่เรียบร้อย!`);
+        }
+
+        function addInitiativeRow() {
+            const list = document.getElementById('initiative-list');
+            const row = document.createElement('div');
+            row.className = "flex items-center gap-2 bg-slate-900 p-2 rounded border border-slate-800 init-row";
+            row.innerHTML = `<input type="text" value="New Entity" class="flex-1 bg-transparent text-slate-200 font-bold focus:outline-none c-name-input" oninput="updatePlayerTracker()"><span class="text-[10px] text-slate-400">Init:</span><input type="number" value="10" class="w-12 bg-slate-950 text-center text-amber-400 font-bold rounded p-1 border border-slate-700 c-init-val" oninput="updatePlayerTracker()"><button onclick="this.parentElement.remove(); updatePlayerTracker();" class="text-red-400 hover:text-red-300 px-1">✕</button>`;
+            list.appendChild(row);
+            updatePlayerTracker();
+        }
+
+        function sortInitiative() {
+            const list = document.getElementById('initiative-list');
+            const rows = Array.from(list.getElementsByClassName('init-row'));
+            
+            rows.sort((a, b) => {
+                let valA = parseInt(a.querySelector('.c-init-val').value) || 0;
+                let valB = parseInt(b.querySelector('.c-init-val').value) || 0;
+                return valB - valA;
+            });
+
+            list.innerHTML = '';
+            rows.forEach((r, idx) => {
+                if (idx === 0) {
+                    r.className = "flex items-center gap-2 bg-purple-950/60 p-2 rounded border border-purple-500 init-row";
+                } else {
+                    r.className = "flex items-center gap-2 bg-slate-900 p-2 rounded border border-slate-800 init-row";
+                }
+                list.appendChild(r);
+            });
+            updatePlayerTracker();
+            alert("จัดเรียงลำดับเทิร์น (Initiative) เรียบร้อยแล้ว!");
+        }
+
+        function nextTurn() {
+            const list = document.getElementById('initiative-list');
+            const rows = list.getElementsByClassName('init-row');
+            if (rows.length > 0) {
+                list.appendChild(rows[0]);
+                Array.from(rows).forEach((r, idx) => {
+                    if (idx === 0) {
+                        r.className = "flex items-center gap-2 bg-purple-950/60 p-2 rounded border border-purple-500 init-row";
+                    } else {
+                        r.className = "flex items-center gap-2 bg-slate-900 p-2 rounded border border-slate-800 init-row";
+                    }
+                });
+                updatePlayerTracker();
+            }
+        }
+
+        function updatePlayerTracker() {
+            const list = document.getElementById('initiative-list');
+            const rows = list.getElementsByClassName('init-row');
+            const playerTracker = document.getElementById('player-shared-initiative');
+            playerTracker.innerHTML = '';
+
+            Array.from(rows).forEach((r, idx) => {
+                const name = r.querySelector('.c-name-input').value || 'Unknown';
+                const init = r.querySelector('.c-init-val').value || '0';
+                
+                const div = document.createElement('div');
+                if (idx === 0) {
+                    div.className = "p-1.5 bg-cyan-900/60 border-l-2 border-cyan-400 rounded flex justify-between font-bold text-cyan-200";
+                    div.innerHTML = `<span>1. ${name} (ตาปัจจุบัน)</span><span class="text-cyan-300">Init: ${init}</span>`;
+                } else {
+                    div.className = "p-1.5 bg-slate-900/60 rounded flex justify-between text-slate-400";
+                    div.innerHTML = `<span>${idx + 1}. ${name}</span><span>Init: ${init}</span>`;
+                }
+                playerTracker.appendChild(div);
+            });
+        }
+
+        function addNewScene() {
+            const newId = scenes.length + 1;
+            const sceneName = prompt("ตั้งชื่อฉากใหม่:", `ฉากที่ ${newId}: Battle Arena`);
+            if (!sceneName) return;
+            scenes.push({ id: newId, name: sceneName, bg: "" });
+            renderSceneList();
+            switchScene(newId);
+        }
+
+        function renderSceneList() {
+            const list = document.getElementById('scene-list');
+            list.innerHTML = '';
+            scenes.forEach(s => {
+                const isActive = s.id === currentSceneId;
+                const div = document.createElement('div');
+                div.className = `p-2 border rounded flex justify-between items-center cursor-pointer ${isActive ? 'bg-slate-900 border-amber-500' : 'bg-slate-950 border-slate-800 text-slate-400'}`;
+                div.innerHTML = `<span>${s.name}</span> ${isActive ? '<span class="text-[10px] text-amber-400">กำลังแสดง</span>' : '<button onclick="switchScene(' + s.id + ')" class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-white">เลือก</button>'}`;
+                list.appendChild(div);
+            });
+        }
+
+        function switchScene(id) {
+            currentSceneId = id;
+            const scene = scenes.find(s => s.id === id);
+            const mapEl = document.getElementById('battle-map');
+            mapEl.style.backgroundImage = scene.bg ? `url('${scene.bg}')` : 'none';
+            document.getElementById('current-scene-label').innerText = scene.name;
+            renderSceneList();
+        }
+
+        function uploadSceneBackground(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const scene = scenes.find(s => s.id === currentSceneId);
+                    scene.bg = e.target.result;
+                    document.getElementById('battle-map').style.backgroundImage = `url('${e.target.result}')`;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function clearSceneBackground() {
+            const scene = scenes.find(s => s.id === currentSceneId);
+            scene.bg = "";
+            document.getElementById('battle-map').style.backgroundImage = 'none';
+        }
+
+        function toggleStealth(tokenId, hide) {
+            const token = document.getElementById(tokenId);
+            if (token) {
+                token.style.opacity = hide ? '0.15' : '1';
+                token.style.filter = hide ? 'grayscale(100%)' : 'none';
+            }
+        }
+
+        function loadCharAvatar(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const label = event.target.parentElement;
+                    label.style.backgroundImage = `url('${e.target.result}')`;
+                    label.style.backgroundSize = 'cover';
+                    label.style.backgroundPosition = 'center';
+                    document.getElementById('char-img-text').style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function rollDice(sides) {
+            const charName = document.getElementById('c-name').value || 'Katsuya';
+            const result = Math.floor(Math.random() * sides) + 1;
+            const log = document.getElementById('chat-log');
+            const item = document.createElement('div');
+            item.className = "p-1.5 bg-slate-900 rounded border-l-2 border-cyan-500 text-[11px]";
+            item.innerHTML = `<b>${charName}</b> ทอย <b class="text-slate-100">d${sides}</b> ได้: <b class="text-amber-400">${result}</b>`;
+            log.prepend(item);
+        }
+
+        function handleChat(e) {
+            if (e.key === 'Enter') {
+                const val = e.target.value.trim();
+                if (!val) return;
+                const charName = document.getElementById('c-name').value || 'Katsuya';
+                const log = document.getElementById('chat-log');
+                const item = document.createElement('div');
+                item.className = "p-1.5 bg-slate-900 rounded border-l-2 border-slate-500 text-[11px]";
+                item.innerHTML = `<span class="text-slate-400">${charName}:</span> ${val}`;
+                log.prepend(item);
+                e.target.value = '';
+            }
+        }
+
+        let activeToken = null;
+        let startX = 0, startY = 0;
+
+        function startDrag(e, tokenId) {
+            activeToken = document.getElementById(tokenId);
+            if (!activeToken) return;
+            startX = e.clientX - activeToken.offsetLeft;
+            startY = e.clientY - activeToken.offsetTop;
+            
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', stopDrag);
+        }
+
+        function onDrag(e) {
+            if (!activeToken) return;
+            let x = e.clientX - startX;
+            let y = e.clientY - startY;
+            activeToken.style.left = x + 'px';
+            activeToken.style.top = y + 'px';
+        }
+
+        function stopDrag() {
+            activeToken = null;
+            document.removeEventListener('mousemove', onDrag);
+            document.removeEventListener('mouseup', stopDrag);
+        }
+
+        switchMode('player');
+        updatePlayerTracker();
+    </script>
+</body>
+</html>
